@@ -1,0 +1,302 @@
+{
+  "name": "first_BRD_draft",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "146vO28yFeuERlF525C4bkMzS5jgtAoEd",
+          "mode": "list",
+          "cachedResultName": "meeting_transcripts",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/146vO28yFeuERlF525C4bkMzS5jgtAoEd"
+        },
+        "event": "fileCreated",
+        "options": {
+          "fileType": "all"
+        }
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        576
+      ],
+      "id": "9a9511bd-6b10-4429-b94d-f38d03239b13",
+      "name": "Google Drive Trigger",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EuK674CdeMI6pfdn",
+          "name": "Google Drive account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "binaryPropertyName": "=file",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        2368,
+        544
+      ],
+      "id": "611749fa-8844-4276-9411-3a94d80ad291",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=## ROLE: \nYou are an AI project manager, assisting in discovery documentation.\n\n## INPUT: \n- meeting_transcrip : {{ $json.data }}\n- Version : \"0.1\"\n- Author : {{ $('Webhook1').item.json.body.Author }}\n- Approver : {{ $('Webhook1').item.json.body.Approver }}\n- Reviewer : {{ $('Webhook1').item.json.body.Reviewer }}\n\n## EXECUTION:\n- Given the meeting_transcript input as **the only source of truth**, extract the information and populate the structure defined below under CONTENT GUIDELINES.\n- If any detail is missing or ambiguous, write [INFORMATION UNCLEAR] in its place.\n**Do not infer, assume, or fabricate**\n\n## CONTENT GUIDELINES:\n\n- Version History:\nList of sequence of versions of revision with information including \nVersion, Date, Author, Reviewer, Approver, Description; in table form.\n\n\n- Table of content:\nList down the page contents\n\n- Executive Summary:\n\nProvide a clear overview of project goals, business context, and key outcomes.\n\nReflect both previously captured objectives and any new findings from the gap analysis.\n\n- Business Objectives & Problem Statement:\n\nConsolidate the rationale behind the project.\n\nClarify business pain points and opportunities.\n\n- Scope of Work:\n\nCombine the original scope with gap-based extensions.\n\nClearly distinguish in-scope and out-of-scope items.\n\nWhere applicable, add assumptions or dependencies.\n\n- Functional Requirements:\n\nEnumerate key functional features or modules.\n\nFill in missing functionality discovered by the gap agent.\n\nPresent requirements in clear, action-oriented statements.\n\n- Non-Functional Requirements:\n\nInclude performance, scalability, security, and compliance parameters.\n\nAdd details discovered during the gap reconciliation.\n\n- System Architecture & Data Flow (if applicable):\n\nIncorporate or outline system components and integrations based on contextual data.\n\n- Stakeholders & Roles:\n\nIdentify all internal and client-side stakeholders relevant to project delivery.\n\n- Dependencies, Risks, and Assumptions:\n\nHighlight dependencies discovered through gap mapping.\n\nClearly outline risks and mitigation strategies.\n\n- Acceptance Criteria & Success Metrics:\n\nDefine measurable KPIs or success indicators aligned with business goals.\n\n## OUTPUT FORMAT:\n- Return the response strictly as a valid JSON object.\n\n- Include one additional key \"markdown_output\" that contains the complete structured content formatted in Markdown (headings, subheadings, bullet points, etc.).\n\n- Maintain a neutral, professional, and business-appropriate tone throughout.\n\n- Ensure the content is concise, factual, and non-repetitive — avoid rephrasing the same points in multiple sections.\n\n- Preserve hierarchical clarity: main topics as level-2 headings (##), subtopics as level-3 (###), and lists where appropriate.\n\n- The final JSON must be syntactically correct and ready for downstream parsing or document generation.\n"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        2592,
+        544
+      ],
+      "id": "039e0aa1-814e-43c0-a69f-4658adb8ad1d",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "R20JkciAEkCvc5sE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\nfrom datetime import datetime\n\n# Step 1: Extract and sanitize input\ncontent = _input.first().json.content.parts[0].text\n\n\nif isinstance(content, dict) and \"parts\" in content:\n    raw = content[\"parts\"][0].get(\"text\", \"\")\nelif isinstance(content, list):\n    raw = content[0] if isinstance(content[0], str) else json.dumps(content[0])\nelse:\n    raw = str(content or \"\")\n\n# Step 2: Remove Markdown fences if LLM wrapped response in triple backticks\nif raw.strip().startswith(\"```\"):\n    lines = raw.strip().splitlines()\n    raw = \"\\n\".join(lines[1:-1]).strip()\n\n# Step 3: Parse JSON safely\ntry:\n    brd_obj = json.loads(raw)\nexcept Exception as e:\n    return [{\n        \"json\": {\n            \"error\": \"Malformed JSON\",\n            \"error_detail\": str(e),\n            \"raw\": raw\n        }\n    }]\n\n# Step 4: Append audit info\naudit_info = {\n    \"ai_model\": \"gemini\",\n    \"generated_at\": datetime.utcnow().isoformat()\n}\n\n# Step 5: Prepare flattened AI context (string-based for easy drag-drop)\n# This is the field your AI Agent should use as context\ntry:\n    ai_context = json.dumps({\n        \"metadata\": audit_info,\n        \"meeting_summary\": brd_obj\n    }, indent=2)\nexcept Exception:\n    ai_context = str(brd_obj)\n\n# Step 6: Prepare output payload\noutput = {\n    \"ai_context\": ai_context,  # This is what you drag into AI Agent context\n    \"created_at\": audit_info[\"generated_at\"],\n    \"model_used\": audit_info[\"ai_model\"]\n}\n\n# Optional: include structured object for reference\noutput[\"structured\"] = brd_obj\n\n# Step 7: Return final output\nreturn [{\"json\": output}]\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2944,
+        544
+      ],
+      "id": "9120e432-0b97-4de3-9f1c-49714af26654",
+      "name": "aggregator"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('aggregator').item.json.ai_context }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        3392,
+        544
+      ],
+      "id": "1e83b3f2-33a6-47c9-8ab5-ab4ecc15d336",
+      "name": "update_draft_1_brd",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "ZpMYDgxrOjlBK3zW",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "folderId": "1qI0ubCbZbnggFueojspwp3EgmKhw_x6k",
+        "title": "=BRD_draft_{{ $now.toFormat('yyyyMMdd_HHmmss') }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        544
+      ],
+      "id": "496c00c6-5c83-40a9-bc88-5f0ac4e765b3",
+      "name": "create_draft_1_brd",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "ZpMYDgxrOjlBK3zW",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "220McTA2zudSjadk",
+          "mode": "list",
+          "cachedResultName": "brd_data_persist",
+          "cachedResultUrl": "/projects/5MsOD3w8yRsHeJPk/datatables/220McTA2zudSjadk"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "google_doc_id": "={{ $json.documentId }}"
+          },
+          "matchingColumns": [
+            "google_doc_id"
+          ],
+          "schema": [
+            {
+              "id": "google_doc_id",
+              "displayName": "google_doc_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "optimizeBulk": false
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        3616,
+        544
+      ],
+      "id": "78ffabf8-fecf-41fb-a3d8-11e9f48f02a1",
+      "name": "Insert row"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "transcript_upload",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2144,
+        544
+      ],
+      "id": "e8de2ae7-6f26-4cee-b05c-2ed0c04ee3d7",
+      "name": "Webhook1",
+      "webhookId": "94765f2e-9ebf-4f3c-9717-e314cc0c1140"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        []
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "aggregator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "aggregator": {
+      "main": [
+        [
+          {
+            "node": "create_draft_1_brd",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_draft_1_brd": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_draft_1_brd": {
+      "main": [
+        [
+          {
+            "node": "update_draft_1_brd",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c7e83c03-df0c-4b0d-be03-e0507c2044fd",
+  "meta": {
+    "instanceId": "719baaf747448413a7ae249f9b4828c6bf57a18a5152e6ca10894c42c4d8d075"
+  },
+  "id": "WXXqZiVJNLgAoGny",
+  "tags": []
+}

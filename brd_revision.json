@@ -1,0 +1,857 @@
+{
+  "name": "brd_revision",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "simple": false,
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('parse_ai_ouptut1').item.json.brd_markdown }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2176,
+        -1248
+      ],
+      "id": "6e5a2d09-dec5-4b87-aa52-e675d93417bc",
+      "name": "Update a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "ZpMYDgxrOjlBK3zW",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        -1056
+      ],
+      "id": "23653bbc-ef00-45aa-8c44-709fd878d91c",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "R20JkciAEkCvc5sE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.keys() }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -736,
+        -1056
+      ],
+      "id": "3e3a7dca-2a22-4d4a-913b-e637fba0f527",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "mankar.shreya29@gmail.com",
+        "subject": "BRD update confirmation",
+        "message": "={{ $('parse_ai_output').item.json.recommendation_summary }}\n\nlink to detailed document: https://docs.google.com/document/d/{{ $json.documentId }}",
+        "responseType": "customForm",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Approve?",
+              "fieldType": "checkbox",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Yes"
+                  },
+                  {
+                    "option": "No"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        656,
+        -1072
+      ],
+      "id": "f2e66abd-fafe-4e81-b5d8-c9e749daae35",
+      "name": "Send a message",
+      "webhookId": "b15f692a-2717-4306-a397-06389e464ae5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RiFs8agGKC2WAnLZ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        -1024
+      ],
+      "id": "cb520415-71de-4ba5-8f30-e4aef6844e40",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "R20JkciAEkCvc5sE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.keys() }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1232,
+        -1024
+      ],
+      "id": "2b4e18f2-079b-40f1-b530-b31e7c887b04",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e0851036-a22d-41c4-a054-1fa02abfc693",
+              "leftValue": "={{ $json.data['Approve?'] }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "array",
+                "operation": "contains",
+                "rightType": "any"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        -1072
+      ],
+      "id": "77d7bd24-49a0-400b-a570-a5cd8556d4a1",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=## ROLE:\nYou are an AI Business Analysis Assistant operating within n8n.  \nYour purpose is to identify **gaps and inconsistencies** between a **draft Business Requirements Document (BRD)** and a **comparison document**, to help refine the BRD collaboratively with a reviewer.\n\n## Inputs Provided:\n- Draft BRD Text: {{ $json.content }}\n- Comparison Document Text: {{ $('get_revision_doc').item.json.content }}\n- Created At: {{ $('extract_latest_doc_id').item.json.createdAt }}\n\n## Your Objectives:\n1. Compare the **draft BRD** and **comparison document** comprehensively.\n2. Identify **gaps**, **omissions**, **misalignments**, or **ambiguous details** that need clarification.\n3. Categorize findings into:\n   - \"Missing Requirements\" (items present in comparison but absent or incomplete in BRD)\n   - \"Comparison Deviations\" (items in BRD but not aligned with comparison document)\n   - \"Ambiguities\" (areas requiring clarification or data validation)\n4. Provide **actionable, reviewer-friendly recommendations** for refining the BRD.\n5. Mark uncertain or incomplete findings with `[REVIEW_REQUIRED]` to flag human follow-up.\n\n## Output Format (Strictly):**\n\n{\n  \"gap_summary\": \"Concise overview of key inconsistencies between BRD and comparison document.\",\n  \"detailed_gaps\": [\n    {\n      \"category\": \"Missing Requirements | Comparison Deviations | Ambiguities\",\n      \"description\": \"Explain the gap and why it matters.\",\n      \"reference_from_comparison\": \"Relevant excerpt or context from the comparison document.\",\n      \"reference_from_brd\": \"Relevant excerpt or note from the draft BRD.\",\n      \"recommendation\": \"Suggested action for reviewer or AI to take next.\"\n    }\n  ],\n  \"recommendation_summary\": \"Overall next steps for BRD refinement with reviewer collaboration.\"\n}\n\n## Guidelines:\n- Maintain formal business tone and precision.\n- Do not rewrite or merge the BRD; focus only on diagnostic comparison.\n- Ensure objectivity — base findings strictly on textual evidence.\n- If the comparison lacks sufficient data, clearly indicate `[REVIEW_REQUIRED]`.\n\n**Return only the valid json file as specified above.**\n",
+        "hasOutputParser": true,
+        "options": {
+          "maxIterations": 5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -816,
+        -1280
+      ],
+      "id": "bc7ba83d-7f9c-4fb6-98b9-35c9fafccec9",
+      "name": "comparison_agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=## ROLE:\nYou are an experienced Corporate Business Analyst and Technical Writer specializing in client documentation. Your core responsibility is to synthesize, refine, and finalize a comprehensive Business Requirements Document (BRD) by bridging content gaps between the initial AI-generated BRD draft and the scope document gap analysis provided by the previous agent.\n\nYour output must be ready for client review, minimizing the need for human edits.\n\n## OBJECTIVE:\n\nUsing both the AI context from the aggregator and the scope gaps identified by 'comparison_agent', create a consolidated, detailed, and logically structured BRD draft that:\n\nIntegrates validated insights from the first transcript:\n{{ JSON.stringify($json.content) }}\n\nFills all gaps or missing elements identified in:\n{{ JSON.stringify($('parse_content_for_doc').item.json.content) }}\n\n**These two are the only source of truth. Do not invent anything**\n\n## DELIVERABLE REQUIREMENTS:\n\nDocument Type: Business Requirements Document (BRD) – Draft Version\n\nTone & Style: Professional, concise, and client-facing; free from repetition or ambiguity.\n\nOutput Format: Structured Markdown into rich text JSON (ready for n8n to render into document or PDF).\n\n## CONTENT GUIDELINES:\n\n- Version History:\nList of sequence of versions of revision with information including \nVersion, Date, Author, Reviewer, Approver, Description; in table form.\n\n- Table of content:\nList down the page contents\n\n- Executive Summary:\n\nProvide a clear, consice overview of project goals, business context, and key outcomes.\n\nReflect both previously captured objectives and any new findings from the gap analysis.\n\n- Business Objectives & Problem Statement:\n\nConsolidate the rationale behind the project.\n\nClarify business pain points and opportunities.\n\n- Scope of Work:\n\nCombine the original scope with gap-based extensions.\n\nClearly distinguish in-scope and out-of-scope items.\n\nWhere applicable, add assumptions or dependencies.\n\n- Functional Requirements:\n\nEnumerate key functional features or modules.\n\nFill in missing functionality discovered by the gap agent.\n\nPresent requirements in clear, action-oriented statements.\n\n- Non-Functional Requirements:\n\nInclude performance, scalability, security, and compliance parameters.\n\nAdd details discovered during the gap reconciliation.\n\n- System Architecture & Data Flow (if applicable):\n\nOutline system components and integrations based on contextual data.\n\n- Stakeholders & Roles:\n\nIdentify all internal and client-side stakeholders relevant to project delivery.\n\n- Dependencies, Risks, and Assumptions:\n\nHighlight dependencies discovered through gap mapping.\n\nClearly outline risks and mitigation strategies.\n\n- Acceptance Criteria & Success Metrics:\n\nDefine measurable KPIs or success indicators aligned with business goals.\n\n## INSTRUCTIONS TO THE AGENT:\n\n- Analyze both inputs in depth.\n\n- Only prioritize content integration over rewriting.\n\n- Fill \"all\" missing sections, complete half-baked points, and refine inconsistencies.\n\n- Ensure seamless narrative continuity — the final BRD should read as if written by a single experienced business analyst.\n\n- Avoid placeholders, generic statements, or redundant context.\n\n- Maintain factual, professional tone and corporate document flow.\n\n- Ensure adding reason for the \"completeness_score\"\n\n## OUTPUT FORMAT:\n\nDeliver strictly a single structured JSON object:\n\n```json\n{\n  \"brd_markdown\": \"## Business Requirements Document\\n\\n### 1. Executive Summary\\n...\\n\",\n  \"version\": \"draft_v2\",\n  \"completeness_score\": \"90%\",\n  \"completeness_score_reason\": \"<Placeholder>\",\n  \"notes\": \"All identified gaps have been addressed using inputs from aggregator and comparison_agent\"\n}\n```",
+        "hasOutputParser": true,
+        "options": {
+          "maxIterations": 5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        -1248
+      ],
+      "id": "fb14aaae-a0f6-467b-8697-e7044cfa7b66",
+      "name": "aggregator_agent"
+    },
+    {
+      "parameters": {
+        "folderId": "1qI0ubCbZbnggFueojspwp3EgmKhw_x6k",
+        "title": "=BRD_{{ $json.version }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        -1248
+      ],
+      "id": "ab8b14c3-72c0-4fe3-baa0-3b28f9127d0e",
+      "name": "Create a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "ZpMYDgxrOjlBK3zW",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"gap_summary\": \"Concise overview of key inconsistencies between BRD and scope document.\",\n  \"detailed_gaps\": [\n    {\n      \"category\": \"Missing Requirements | Scope Deviations | Ambiguities\",\n      \"description\": \"Explain the gap and why it matters.\",\n      \"reference_from_scope\": \"Relevant excerpt or context from the scope document.\",\n      \"reference_from_brd\": \"Relevant excerpt or note from the draft BRD.\",\n      \"recommendation\": \"Suggested action for reviewer or AI to take next.\"\n    }\n  ],\n  \"recommendation_summary\": \"Overall next steps for BRD refinement with reviewer collaboration.\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -608,
+        -1056
+      ],
+      "id": "fb8a24b4-39b9-4b4e-872f-a404cddd2531",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        -848
+      ],
+      "id": "c6f54c5e-bf1b-4d0c-b3cf-067a9f53e954",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "R20JkciAEkCvc5sE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"brd_markdown\": \"## Business Requirements Document\\n\\n### 1. Executive Summary\\n...\\n\",\n  \"version\": \"draft_v2\",\n  \"completeness_score\": \"90%\",\n  \"completeness_score_reason\": \"<Placeholder>\",\n  \"notes\": \"All identified gaps have been addressed using inputs from aggregator and 'comparison_agent'.\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1360,
+        -1024
+      ],
+      "id": "a790f5dc-b02c-41b9-bbf4-670c0d844250",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        -816
+      ],
+      "id": "ab6768ab-ed11-42dc-9159-eafa70379415",
+      "name": "Google Gemini Chat Model4",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "R20JkciAEkCvc5sE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $('create_comparison_doc').item.json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('parse_content_for_doc').item.json.content }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -1072
+      ],
+      "id": "4900ae19-b04c-4a9e-bef6-9d4b61544c77",
+      "name": "update_comparison_doc",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "ZpMYDgxrOjlBK3zW",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\nimport re\n\nraw_data = _input.first().json.get(\"output\", {})\n\nif isinstance(raw_data, str):\n    # Remove markdown fences if present\n    raw_clean = re.sub(r\"^```json\\s*|\\s*```$\", \"\", raw_data.strip(), flags=re.MULTILINE)\n    try:\n        data = json.loads(raw_clean)\n    except Exception as e:\n        data = {\"error\": \"Malformed JSON\", \"details\": str(e), \"raw\": raw_clean}\nelse:\n    # If it's already a Python dict (n8n gave it as object), just use it\n    data = raw_data\n\n# Return parsed data for next node\nreturn [{\"json\": data,\n         \n         \"pairedItem\": {\n            \"item\": data\n        }}]\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -1072
+      ],
+      "id": "0900ff21-f21d-404d-b85b-b43783c88d9b",
+      "name": "parse_ai_output"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\nimport re\n\n# n8n automatically passes the input JSON object as _input\n# You can safely access it directly in Python\nraw_data = _input.first().json.get(\"output\", {})\n\n# If your AI output is a string containing JSON, clean it up\nif isinstance(raw_data, str):\n    # Remove markdown fences if present\n    raw_clean = re.sub(r\"^```json\\s*|\\s*```$\", \"\", raw_data.strip(), flags=re.MULTILINE)\n    try:\n        data = json.loads(raw_clean)\n    except Exception as e:\n        data = {\"error\": \"Malformed JSON\", \"details\": str(e), \"raw\": raw_clean}\nelse:\n    # If it's already a Python dict (n8n gave it as object), just use it\n    data = raw_data\n\n# Return parsed data for next node\nreturn [{\"json\": data}]\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        -1248
+      ],
+      "id": "6b897c45-b14c-4145-b4c2-3d17dcbac59a",
+      "name": "parse_ai_ouptut1"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1R20kH9U4pAiagMi8ZxxEsHfviatci1VP",
+          "mode": "list",
+          "cachedResultName": "docs_for_revision",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1R20kH9U4pAiagMi8ZxxEsHfviatci1VP"
+        },
+        "event": "fileCreated",
+        "options": {
+          "fileType": "all"
+        }
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        -1248
+      ],
+      "id": "680a3dfa-ae2f-4ab7-858e-06c7471072ac",
+      "name": "comparison_trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EuK674CdeMI6pfdn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\n\n# Suppose this JSON array comes from the previous node\ndata = _(\"parse_ai_output\").all()[0][\"json\"]\n\n# Helper function to build Markdown-like text\ndef format_gap(gap):\n    return (\n        f\"**Category:** {gap.get('category', '')}\\n\"\n        f\"**Description:** {gap.get('description', '')}\\n\"\n        f\"**Reference from Scope:** {gap.get('reference_from_scope', '')}\\n\"\n        f\"**Reference from BRD:** {gap.get('reference_from_brd', '')}\\n\"\n        f\"**Recommendation:** {gap.get('recommendation', '')}\\n\"\n    )\n\n# Build document content\ndoc_sections = []\ndoc_text = \"\"\n\n#  Main title\ndoc_title = \"## BRD Gap Analysis Report\\n\\n\"\ndoc_sections.append(doc_title)\n\nfor entry in data:\n  \n  print(f\">>>>>>>>>>> {entry} -----> {isinstance(data[entry], str)}\")\n\n  if isinstance(data[entry], str):\n    # Gap summary\n    doc_text += f\"### {\" \".join(entry.split(\"_\")).title()}\\n{data[entry]}\\n\\n\"\n    \n  else:\n    # Detailed gaps\n    doc_text += f\"### {\" \".join(entry.split(\"_\")).title()}\\n\"\n    for i, gap in enumerate(data[entry], start=1):\n      # print(\">>>>>>>>>>\", gap)\n      doc_text += f\"#### Gap {i}: {gap.get('category', 'Uncategorized')}\\n\"\n      doc_text += format_gap(gap) + \"\\n\"\n\n  \n  doc_sections.append(doc_text) \n  doc_text = \"\"\n  # print(\">>>>>>>>>>>>\", doc_sections)\n\n# Combine all sections (in case of multiple items in array)\nfinal_doc_content = \"\\n\\n---\\n\\n\".join(doc_sections)\n# print(\">>>>>>>>>>>>>>\", final_doc_content)\n\n# Output for Google Docs Create node\nreturn [{\n    \"json\": {\n        \"title\": \"BRD_Gap_Analysis_Document\",\n        \"content\": final_doc_content\n    }\n}]\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        -1072
+      ],
+      "id": "5a48fd1a-d29d-44cd-b8c5-0821a154c617",
+      "name": "parse_content_for_doc"
+    },
+    {
+      "parameters": {
+        "folderId": "1juKAH0RrO3Dj3eCDIgxHvgl6vfH7qyUP",
+        "title": "=comparison_analysis"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -1072
+      ],
+      "id": "993e40af-eef1-400d-8b1c-8c2c61f89094",
+      "name": "create_comparison_doc",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "ZpMYDgxrOjlBK3zW",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ $json.docId }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        -1248
+      ],
+      "id": "be69e91b-2006-4e94-b806-42ee4a5f3d2a",
+      "name": "get_first_draft",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "ZpMYDgxrOjlBK3zW",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ $('comparison_trigger').item.json.id }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        -1248
+      ],
+      "id": "faad075c-661a-442c-bf52-c47ea780c59c",
+      "name": "get_revision_doc",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "ZpMYDgxrOjlBK3zW",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "items = _input.all()\n\nlatest_item = items[-1][\"json\"]   # pick the latest one\n\noutput = []\n\nfor inp in items:\n    output.append({\n        \"json\": {\n            \"docId\": latest_item.get(\"google_doc_id\", \"\"),\n            \"createdAt\": latest_item.get(\"createdAt\", \"\")\n        },\n        \"pairedItem\": {\n            \"item\": inp[\"pairedItem\"][\"item\"] if \"pairedItem\" in inp else 0\n        }\n    })\n\nreturn output\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1312,
+        -1248
+      ],
+      "id": "92010ebe-c887-44e6-bd87-87e18ac8996b",
+      "name": "extract_latest_doc_id"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "220McTA2zudSjadk",
+          "mode": "list",
+          "cachedResultName": "brd_data_persist",
+          "cachedResultUrl": "/projects/5MsOD3w8yRsHeJPk/datatables/220McTA2zudSjadk"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "isNotEmpty"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        -1536,
+        -1248
+      ],
+      "id": "27109b3a-25e4-42f5-8a29-136e7c067145",
+      "name": "fetch_latest_brdV"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "220McTA2zudSjadk",
+          "mode": "list",
+          "cachedResultName": "brd_data_persist",
+          "cachedResultUrl": "/projects/5MsOD3w8yRsHeJPk/datatables/220McTA2zudSjadk"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "google_doc_id": "={{ $json.documentId }}"
+          },
+          "matchingColumns": [
+            "google_doc_id"
+          ],
+          "schema": [
+            {
+              "id": "google_doc_id",
+              "displayName": "google_doc_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        -1248
+      ],
+      "id": "505cd68b-59ae-48ea-981a-6d260eaab49c",
+      "name": "insert_new_brdV"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "comparison_agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "comparison_agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "aggregator_agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "aggregator_agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "aggregator_agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "comparison_agent": {
+      "main": [
+        [
+          {
+            "node": "parse_ai_output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "aggregator_agent": {
+      "main": [
+        [
+          {
+            "node": "parse_ai_ouptut1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a document": {
+      "main": [
+        [
+          {
+            "node": "Update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "comparison_agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "aggregator_agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_comparison_doc": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_ai_output": {
+      "main": [
+        [
+          {
+            "node": "parse_content_for_doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_ai_ouptut1": {
+      "main": [
+        [
+          {
+            "node": "Create a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "comparison_trigger": {
+      "main": [
+        [
+          {
+            "node": "get_revision_doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_content_for_doc": {
+      "main": [
+        [
+          {
+            "node": "create_comparison_doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_comparison_doc": {
+      "main": [
+        [
+          {
+            "node": "update_comparison_doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_first_draft": {
+      "main": [
+        [
+          {
+            "node": "comparison_agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "aggregator_agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_revision_doc": {
+      "main": [
+        [
+          {
+            "node": "fetch_latest_brdV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract_latest_doc_id": {
+      "main": [
+        [
+          {
+            "node": "get_first_draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a document": {
+      "main": [
+        [
+          {
+            "node": "insert_new_brdV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_latest_brdV": {
+      "main": [
+        [
+          {
+            "node": "extract_latest_doc_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "saveExecutionProgress": true
+  },
+  "versionId": "b052470c-b9ba-4666-85ab-3bbd808da24d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "719baaf747448413a7ae249f9b4828c6bf57a18a5152e6ca10894c42c4d8d075"
+  },
+  "id": "Yo9xYwyshg1tDay7",
+  "tags": [
+    {
+      "updatedAt": "2025-11-13T10:00:11.556Z",
+      "createdAt": "2025-11-13T10:00:11.556Z",
+      "id": "9TM4TVjr61xPB0qY",
+      "name": "testing"
+    }
+  ]
+}
